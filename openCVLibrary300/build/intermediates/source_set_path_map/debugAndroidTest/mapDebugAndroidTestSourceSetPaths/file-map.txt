@@ -1,0 +1,5 @@
+org.opencv.test.openCVLibrary300-androidTest-0 D:\DSGroupware2\openCVLibrary300\build\generated\res\resValues\androidTest\debug
+org.opencv.test.openCVLibrary300-mergeDebugAndroidTestResources-1 D:\DSGroupware2\openCVLibrary300\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+org.opencv.test.openCVLibrary300-mergeDebugAndroidTestResources-2 D:\DSGroupware2\openCVLibrary300\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+org.opencv.test.openCVLibrary300-debugAndroidTest-3 D:\DSGroupware2\openCVLibrary300\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
+org.opencv.test.openCVLibrary300-debug-4 D:\DSGroupware2\openCVLibrary300\build\intermediates\packaged_res\debug\packageDebugResources

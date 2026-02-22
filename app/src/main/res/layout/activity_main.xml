@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:orientation="vertical"
+android:layout_width="fill_parent"
+android:layout_height="fill_parent">
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:background="#ffffff"
+        android:layout_weight="1">
+
+        <WebView
+            android:id="@+id/webview"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" android:clipToPadding="false"/>
+        <WebView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/webviewLo"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="10">
+        <ImageButton
+            android:id="@+id/Button1"
+            android:layout_weight="1"
+            android:background="@drawable/bg3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/btn1_icon_home"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+        <ImageButton
+            android:id="@+id/Button2"
+
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg3"
+            android:src="@drawable/btn2_icon_pre"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+        <ImageButton
+            android:id="@+id/Button3"
+            android:background="@drawable/bg3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/btn3_icon_next"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+        <ImageButton
+            android:id="@+id/Button4"
+            android:background="@drawable/bg3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/btn4_icon_refresh"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+        <ImageButton
+            android:id="@+id/Button4_LOC"
+            android:background="@drawable/bg3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/btn5_icon_location"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+        <ImageButton
+            android:id="@+id/Button9"
+            android:background="@drawable/bg3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/btn6_icon_logout"
+            android:scaleType="fitCenter"
+            android:paddingTop="3sp"/>
+    </LinearLayout>
+</LinearLayout>
+

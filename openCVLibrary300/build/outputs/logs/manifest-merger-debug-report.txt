@@ -1,0 +1,21 @@
+-- Merging decision tree log ---
+manifest
+ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:2:1-7:12
+INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:2:1-7:12
+	package
+		INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml
+	android:versionName
+		ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:4:7-34
+	xmlns:android
+		ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:2:11-69
+	android:versionCode
+		ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:3:5-31
+uses-sdk
+ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:6:5-43
+INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:6:5-43
+INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:6:5-43
+	android:targetSdkVersion
+		INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		ADDED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml:6:15-40
+		INJECTED from D:\DSGroupware2\openCVLibrary300\src\main\AndroidManifest.xml

@@ -1,0 +1,4 @@
+#Wed Feb 04 10:03:39 KST 2026
+base.0=D\:\\DSGroupware2\\openCVLibrary300\\build\\intermediates\\dex\\debugAndroidTest\\mergeDexDebugAndroidTest\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
