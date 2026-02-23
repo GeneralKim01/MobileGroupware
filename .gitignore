@@ -1,6 +1,17 @@
+# Gradle / Android Studio
 .gradle/
-build/
-*/build/
+**/build/
 local.properties
-.idea/
 *.iml
+.idea/
+.DS_Store
+
+# Old import / custom cache folders at project root
+caches/
+daemon/
+native/
+
+# OpenCV module build artifacts
+openCVLibrary300/build/
+openCVLibrary300/.externalNativeBuild/
+openCVLibrary300/.cxx/
