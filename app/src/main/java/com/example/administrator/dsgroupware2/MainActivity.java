@@ -40,6 +40,7 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageButton;
@@ -70,8 +71,15 @@ import java.util.List;
 
 import androidx.core.content.ContextCompat;
 
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.os.Message;
+
 public class MainActivity extends AppCompatActivity {
     /** Called when the activity is first created. */
+
+    private FrameLayout popupContainer;
+    private WebView popupWebView;
 
     //private String URL1 = "http://m.dstoolpia.co.kr:8080?nPno=";
     //private String URL1="http://m.dstoolpia.co.kr:8080/default2.aspx?nPno=";
@@ -309,6 +317,8 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
+        popupContainer = findViewById(R.id.popupContainer);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Create channel to show notifications.
             String channelId  = getString(R.string.default_notification_channel_id);
@@ -378,6 +388,8 @@ public class MainActivity extends AppCompatActivity {
         webview.getSettings().setGeolocationEnabled(true);
         webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
         webview.getSettings().setGeolocationDatabasePath(getFilesDir().getPath());
+
+        webview.getSettings().setSupportMultipleWindows(true);
 
         // 안드로이드 14(API34)에서 사용할 수 없는 메서드. (이미 13에서 폐기됨)
         //webview.getSettings().setAppCacheEnabled(true);
@@ -459,6 +471,116 @@ public class MainActivity extends AppCompatActivity {
                 return super.onJsAlert(view, url, message, result);
             }
 
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                closePopup();
+
+                popupWebView = new WebView(view.getContext());
+
+                WebSettings s = popupWebView.getSettings();
+
+                // 기본
+                s.setJavaScriptEnabled(true);
+                s.setDomStorageEnabled(true);
+                s.setDatabaseEnabled(true);
+                s.setUseWideViewPort(true);
+                s.setLoadWithOverviewMode(true);
+
+                // window.open 관련
+                s.setSupportMultipleWindows(true);
+                s.setJavaScriptCanOpenWindowsAutomatically(true);
+
+                // 줌(핀치/더블탭)
+                s.setSupportZoom(true);
+                s.setBuiltInZoomControls(true);
+                s.setDisplayZoomControls(false); // 줌 버튼 숨김(핀치만 사용)
+
+                // (선택) 텍스트 줌 고정 - 메인과 동일하게 맞추고 싶으면
+                // s.setTextZoom(100);
+
+                // 접근성/Lint 경고 방지용 (동작엔 큰 영향 없음)
+                popupWebView.setOnTouchListener((v, event) -> {
+                    if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                        v.performClick();
+                    }
+                    return false; // WebView 기본 동작(스크롤/줌) 유지
+                });
+
+                // 팝업 웹뷰 클라이언트: viewport 확대금지 우회 + 링크는 팝업 안에서 열리게
+                popupWebView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                        // 팝업 안에서는 그냥 팝업이 처리
+                        v.loadUrl(url);
+                        return true;
+                    }
+
+                    @Override
+                    public void onPageFinished(WebView v, String url) {
+                        super.onPageFinished(v, url);
+
+                        // ★ viewport가 user-scalable=no 로 막혀있을 때 확대가 안 되는 케이스 우회
+                        String js =
+                                "(function(){" +
+                                        "var meta=document.querySelector('meta[name=viewport]');" +
+                                        "if(!meta){" +
+                                        "  meta=document.createElement('meta');" +
+                                        "  meta.name='viewport';" +
+                                        "  document.head.appendChild(meta);" +
+                                        "}" +
+                                        "meta.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');" +
+                                        "})();";
+
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                            v.evaluateJavascript(js, null);
+                        } else {
+                            v.loadUrl("javascript:" + js);
+                        }
+                    }
+                });
+
+                // 팝업 WebChromeClient: 팝업 닫기 + (팝업 안에서 또 window.open)도 동일 처리
+                popupWebView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onCloseWindow(WebView window) {
+                        closePopup();
+                    }
+
+                    @Override
+                    public boolean onCreateWindow(WebView v, boolean isDialog2, boolean isUserGesture2, Message resultMsg2) {
+                        // 팝업 내부에서 또 window.open 호출되면, 같은 popupWebView에서 열리게 처리
+                        WebView.WebViewTransport transport2 = (WebView.WebViewTransport) resultMsg2.obj;
+                        transport2.setWebView(popupWebView);
+                        resultMsg2.sendToTarget();
+                        return true;
+                    }
+                });
+
+                // ★ 화면에 붙이기
+                if (popupContainer != null) {
+                    popupContainer.setVisibility(View.VISIBLE);
+
+                    // 혹시 남아있는 뷰가 있으면 정리
+                    popupContainer.removeAllViews();
+
+                    popupContainer.addView(
+                            popupWebView,
+                            new FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                    );
+                } else {
+                    Log.e("POPUP", "popupContainer is null. activity_main.xml에 popupContainer가 있는지 확인해줘.");
+                }
+
+                // ★ 핵심: window.open 결과를 popupWebView로 연결
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(popupWebView);
+                resultMsg.sendToTarget();
+
+                return true;
+            }
         });
 
         // 웹뷰에서 파일등의 다운로드를 받게될 경우 핸들링해주기 위해 필요
@@ -901,14 +1023,30 @@ public class MainActivity extends AppCompatActivity {
     //////////////////////////////////////////////////////////////////////////////////
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        Log.e("onKeyDown",""+keyCode);
-        if(keyCode==4) {
-            setDialog();
-            return false;
-        }
-        else
-            return super.onKeyDown(keyCode,event);
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
 
+            // 1) 팝업이 떠 있으면 팝업 우선 처리
+            if (popupWebView != null) {
+                if (popupWebView.canGoBack()) {
+                    popupWebView.goBack();
+                } else {
+                    closePopup();
+                }
+                return true;
+            }
+
+            // 2) 메인 웹뷰 히스토리 있으면 뒤로
+            if (webview != null && webview.canGoBack()) {
+                webview.goBack();
+                return true;
+            }
+
+            // 3) 그 외엔 종료 다이얼로그
+            setDialog();
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
     }
 
     void stopAllServices() {
@@ -1136,6 +1274,15 @@ public class MainActivity extends AppCompatActivity {
         public WebViewInterface(Activity activity, WebView webView){
             _context = activity;
             _appView = webView;
+        }
+    }
+
+    private void closePopup() {
+        if (popupWebView != null) {
+            popupContainer.removeView(popupWebView);
+            popupWebView.destroy();
+            popupWebView = null;
+            popupContainer.setVisibility(View.GONE);
         }
     }
 }

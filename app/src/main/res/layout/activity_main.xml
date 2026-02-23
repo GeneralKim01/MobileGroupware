@@ -1,86 +1,131 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-android:orientation="vertical"
-android:layout_width="fill_parent"
-android:layout_height="fill_parent">
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:background="#ffffff"
-        android:layout_weight="1">
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-        <WebView
-            android:id="@+id/webview"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent" android:clipToPadding="false"/>
-        <WebView
+    <!-- 기존 화면 (본문 + 하단바) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- WebView 영역: 남는 공간 전부 -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/webviewLo"
-            android:layout_weight="1" />
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:background="#ffffff">
+
+            <WebView
+                android:id="@+id/webview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false" />
+
+            <!-- ※ 이 webviewLo가 정말 필요한지 모르겠는데,
+                 기존 구조 유지하려고 일단 남겨뒀어.
+                 실제로 안 쓰는 거면 삭제 추천. -->
+            <WebView
+                android:id="@+id/webviewLo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <!-- 하단 버튼바: 고정 높이 -->
+        <LinearLayout
+            android:id="@+id/bottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:orientation="horizontal"
+            android:background="@android:color/transparent">
+
+            <ImageButton
+                android:id="@+id/Button1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn1_icon_home"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+
+            <ImageButton
+                android:id="@+id/Button2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn2_icon_pre"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+
+            <ImageButton
+                android:id="@+id/Button3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn3_icon_next"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+
+            <ImageButton
+                android:id="@+id/Button4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn4_icon_refresh"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+
+            <ImageButton
+                android:id="@+id/Button4_LOC"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn5_icon_location"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+
+            <ImageButton
+                android:id="@+id/Button9"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg3"
+                android:src="@drawable/btn6_icon_logout"
+                android:scaleType="centerInside"
+                android:adjustViewBounds="true"
+                android:padding="0dp"
+                android:minHeight="0dp"
+                android:minWidth="0dp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_weight="10">
-        <ImageButton
-            android:id="@+id/Button1"
-            android:layout_weight="1"
-            android:background="@drawable/bg3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/btn1_icon_home"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-        <ImageButton
-            android:id="@+id/Button2"
+    <!-- ★ 팝업 WebView 오버레이 컨테이너 (맨 위에 덮임) -->
+    <FrameLayout
+        android:id="@+id/popupContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/bg3"
-            android:src="@drawable/btn2_icon_pre"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-        <ImageButton
-            android:id="@+id/Button3"
-            android:background="@drawable/bg3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:src="@drawable/btn3_icon_next"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-        <ImageButton
-            android:id="@+id/Button4"
-            android:background="@drawable/bg3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:src="@drawable/btn4_icon_refresh"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-        <ImageButton
-            android:id="@+id/Button4_LOC"
-            android:background="@drawable/bg3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:src="@drawable/btn5_icon_location"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-        <ImageButton
-            android:id="@+id/Button9"
-            android:background="@drawable/bg3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:src="@drawable/btn6_icon_logout"
-            android:scaleType="fitCenter"
-            android:paddingTop="3sp"/>
-    </LinearLayout>
-</LinearLayout>
-
+</FrameLayout>
