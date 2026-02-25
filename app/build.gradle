@@ -4,13 +4,13 @@ apply plugin: 'com.google.gms.google-services'
 android {
     compileSdkVersion 34
     namespace "com.example.administrator.dsgroupware2"
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId 'com.dstoolpia.administrator.dsgroupware2'
         minSdkVersion 21
-        targetSdk 34
-        versionCode 5
+        targetSdk 35
+        versionCode 9
         versionName "1.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

@@ -75,6 +75,16 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.os.Message;
 
+import android.util.TypedValue;
+import android.widget.LinearLayout;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import androidx.appcompat.widget.Toolbar;
+
 public class MainActivity extends AppCompatActivity {
     /** Called when the activity is first created. */
 
@@ -318,6 +328,51 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         popupContainer = findViewById(R.id.popupContainer);
+
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        View root = findViewById(R.id.root);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("동신툴피아 그룹웨어");
+        }
+
+        toolbar.setTitleTextColor(android.graphics.Color.WHITE);
+
+        View bottomBar = findViewById(R.id.bottomBar);
+
+        final int actionBarSizePx = getActionBarHeightPx();
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets sysBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+
+            // 1) toolbar 높이를 status bar 만큼 늘리고, 내용은 paddingTop으로 내려줌
+            ViewGroup.LayoutParams tlp = toolbar.getLayoutParams();
+            tlp.height = actionBarSizePx + sysBars.top;
+            toolbar.setLayoutParams(tlp);
+
+            toolbar.setPadding(
+                    sysBars.left,
+                    sysBars.top,
+                    sysBars.right,
+                    0
+            );
+
+            // 2) 하단바는 네비게이션바 높이만큼 위로
+            ViewGroup.MarginLayoutParams blp = (ViewGroup.MarginLayoutParams) bottomBar.getLayoutParams();
+            blp.bottomMargin = sysBars.bottom;
+            bottomBar.setLayoutParams(blp);
+
+            // 3) popupContainer는 status bar 밑으로 내려오게 paddingTop
+            popupContainer.setPadding(sysBars.left, sysBars.top, sysBars.right, sysBars.bottom);
+
+            return insets;
+        });
+
+        // 최초 1회 인셋 계산 트리거
+        ViewCompat.requestApplyInsets(root);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Create channel to show notifications.
@@ -1279,10 +1334,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void closePopup() {
         if (popupWebView != null) {
-            popupContainer.removeView(popupWebView);
+            popupContainer.removeAllViews();
             popupWebView.destroy();
             popupWebView = null;
             popupContainer.setVisibility(View.GONE);
         }
+    }
+
+    private int getActionBarHeightPx() {
+        TypedValue tv = new TypedValue();
+        if (getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
+            return TypedValue.complexToDimensionPixelSize(tv.data, getResources().getDisplayMetrics());
+        }
+        return 0;
+    }
+
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 }

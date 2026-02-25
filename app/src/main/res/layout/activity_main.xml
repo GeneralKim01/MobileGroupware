@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 기존 화면 (본문 + 하단바) -->
+    <!-- 전체 화면(툴바 + 본문 + 하단바) -->
     <LinearLayout
+        android:id="@+id/mainContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- WebView 영역: 남는 공간 전부 -->
-        <LinearLayout
+        <!-- ✅ 우리가 직접 쓰는 툴바(액션바 대체) -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            android:titleTextColor="@android:color/white"
+            android:title="동신툴피아 그룹웨어" />
+
+        <!-- 본문 컨테이너 (여기엔 top padding 절대 주지 말 것) -->
+        <FrameLayout
+            android:id="@+id/contentContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical"
             android:background="#ffffff">
 
             <WebView
@@ -23,17 +34,16 @@
                 android:layout_height="match_parent"
                 android:clipToPadding="false" />
 
-            <!-- ※ 이 webviewLo가 정말 필요한지 모르겠는데,
-                 기존 구조 유지하려고 일단 남겨뒀어.
-                 실제로 안 쓰는 거면 삭제 추천. -->
+            <!-- ✅ 위치 저장용(보이지 않게) -->
             <WebView
                 android:id="@+id/webviewLo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="1" />
-        </LinearLayout>
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone" />
 
-        <!-- 하단 버튼바: 고정 높이 -->
+        </FrameLayout>
+
+        <!-- ✅ 하단 버튼바 -->
         <LinearLayout
             android:id="@+id/bottomBar"
             android:layout_width="match_parent"
@@ -119,9 +129,10 @@
                 android:minHeight="0dp"
                 android:minWidth="0dp" />
         </LinearLayout>
+
     </LinearLayout>
 
-    <!-- ★ 팝업 WebView 오버레이 컨테이너 (맨 위에 덮임) -->
+    <!-- ✅ 팝업 WebView 오버레이 (맨 위 덮기) -->
     <FrameLayout
         android:id="@+id/popupContainer"
         android:layout_width="match_parent"
