@@ -40,6 +40,7 @@ import android.webkit.GeolocationPermissions;
 import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -85,8 +86,15 @@ import androidx.core.view.WindowInsetsCompat;
 
 import androidx.appcompat.widget.Toolbar;
 
+import android.app.DownloadManager;
+import android.os.Environment;
+import android.webkit.URLUtil;
+
 public class MainActivity extends AppCompatActivity {
     /** Called when the activity is first created. */
+
+    private String lastMainPageUrl = null;
+    private String lastPopupPageUrl = null;
 
     private FrameLayout popupContainer;
     private WebView popupWebView;
@@ -232,12 +240,21 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         CookieSyncManager.getInstance().startSync();
+
+        // ★ 복귀 시, 팝업이 꼬여서 흰 화면 덮는 거 방지
+        if (popupContainer != null && popupWebView == null) {
+            popupContainer.removeAllViews();
+            popupContainer.setVisibility(View.GONE);
+        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
         CookieSyncManager.getInstance().stopSync();
+
+        // ★ 외부앱(마켓 등)으로 나갈 때 팝업 레이어가 남아 흰 화면 되는 케이스 차단
+        if (popupWebView != null) closePopup();
     }
 
     private boolean hasLocationPermission() {
@@ -440,6 +457,10 @@ public class MainActivity extends AppCompatActivity {
             webview.getSettings().setTextZoom(100);
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webview.getSettings().setSafeBrowsingEnabled(false);
+        }
+
         webview.getSettings().setGeolocationEnabled(true);
         webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
         webview.getSettings().setGeolocationDatabasePath(getFilesDir().getPath());
@@ -532,6 +553,15 @@ public class MainActivity extends AppCompatActivity {
 
                 popupWebView = new WebView(view.getContext());
 
+                popupWebView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+                    startDownload(url, userAgent, contentDisposition, mimeType);
+
+                    popupWebView.post(() -> {
+                        try { popupWebView.stopLoading(); } catch (Exception ignored) {}
+                        closePopup();
+                    });
+                });
+
                 WebSettings s = popupWebView.getSettings();
 
                 // 기본
@@ -564,10 +594,29 @@ public class MainActivity extends AppCompatActivity {
                 // 팝업 웹뷰 클라이언트: viewport 확대금지 우회 + 링크는 팝업 안에서 열리게
                 popupWebView.setWebViewClient(new WebViewClient() {
                     @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest request){
+                        Uri u = request.getUrl();
+                        String url = (u != null) ? u.toString() : null;
+
+                        if (handleSpecialSchemes(url)) return true;
+
+                        // 다운로드/첨부는 WebView로 흘려서 DownloadListener가 받게
+                        if (isDownloadRedirectUrl(url) || looksLikeAttachment(url)) {
+                            return false;
+                        }
+
+                        return false;
+                    }
+
+                    @Override
                     public boolean shouldOverrideUrlLoading(WebView v, String url) {
-                        // 팝업 안에서는 그냥 팝업이 처리
-                        v.loadUrl(url);
-                        return true;
+
+                        if (handleSpecialSchemes(url)) return true;
+
+                        if (isDownloadRedirectUrl(url) || looksLikeAttachment(url)) {
+                            return false;
+                        }
+                        return false;
                     }
 
                     @Override
@@ -639,13 +688,18 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 웹뷰에서 파일등의 다운로드를 받게될 경우 핸들링해주기 위해 필요
-        webview.setDownloadListener(new DownloadListener() {
-            @Override
-            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
-                Intent i = new Intent(Intent.ACTION_VIEW);
-                i.setData(Uri.parse(url));
-                startActivity(i);
-            }
+        webview.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            startDownload(url, userAgent, contentDisposition, mimeType);
+
+            webview.post(() -> {
+                try { webview.stopLoading(); } catch (Exception ignored) {}
+
+                if (lastMainPageUrl != null && lastMainPageUrl.length() > 0) {
+                    webview.loadUrl(lastMainPageUrl);
+                } else {
+                    webview.loadUrl(_url + "/index.aspx");
+                }
+            });
         });
 
         //**
@@ -708,78 +762,63 @@ public class MainActivity extends AppCompatActivity {
 
         final Activity activity = this;
         webview.setWebViewClient(new WebViewClient() {
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){
+                Uri u = request.getUrl();
+                String url = (u != null) ? u.toString() : null;
+
+                if (handleSpecialSchemes(url)) return true;
+
+                // cd 중계 URL은 OS로 넘겨서 앱 링크 매칭을 OS에 맡기는 게 제일 안정적
+                if (isDownloadRedirectUrl(url)) {
+                    try {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        i.addCategory(Intent.CATEGORY_BROWSABLE);
+                        startActivity(i);
+                        return true;
+                    } catch (Exception e) {
+                        Log.e("WV_CD", "Open redirect url failed: " + url, e);
+                    }
+                }
+
+                return false; // 나머지는 WebView가 로드
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                if (url.startsWith("http://")) {
-                    if (url.endsWith("pdf")) {
-                        view.loadUrl("http://docs.google.com/gview?embedded=true&url=" + url);
-                    }
-                    else if (url.endsWith("xls")) {
-                        //HttpDown(url,"sdCard/text.xls");
-                        // view.loadUrl("http://docs.google.com/gview?embedded=true&url=" + url);
-                    }
-//                    else if(url.contains("DXXRVD.axd") == true){
-////                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-////                        startActivity(i);
-//                        WebView r_view = (WebView)findViewById(R.id.webWiewR);
-//                        r_view.setWebViewClient(new WebViewClient());
-//                        r_view.loadUrl(url);
-//                        return true;
-//                    }
-                    else {
-                        view.loadUrl(url);
-                    }
-                    return true;
-                } else {
-                    boolean override = false;
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    intent.addCategory(Intent.CATEGORY_BROWSABLE);
-                    intent.putExtra(Browser.EXTRA_APPLICATION_ID, getPackageName());
 
-                    if (url.startsWith("sms:")) {
-                        Intent i = new Intent(Intent.ACTION_SENDTO, Uri.parse(url));
-                        startActivity(i);
-                        return true;
-                    }
-                    if (url.startsWith("tel:")) {
+                if (handleSpecialSchemes(url)) return true;
+                if (isDownloadRedirectUrl(url)) {
+                    try {
                         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        i.addCategory(Intent.CATEGORY_BROWSABLE);
                         startActivity(i);
                         return true;
+                    } catch (Exception e) {
+                        Log.e("WV_CD", "Open redirect url failed: " + url, e);
                     }
-                    if (url.startsWith("mailto:")) {
-                        Intent i = new Intent(Intent.ACTION_SENDTO, Uri.parse(url));
-                        startActivity(i);
-                        return true;
-                    }
-
-                    // https페이지를 로드할 경우 아래 코드를 타면, 페이지가 스마트폰의 브라우저 앱으로 강제로드되는 현상이 있어 주석처리. 2025.02.06.1627
-                    //try {
-                    //    startActivity(intent);
-                    //    override = true;
-                    //} catch (ActivityNotFoundException ex) {
-                    //
-                    //}
-
-                    // 직접 웹뷰의 loadUrl 메서드로 페이지 호출되도록 변경. 2025.02.06.1627
-                    view.loadUrl(url);
-                    return true;
                 }
+
+                return false;
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                // 유저 코드 가져오도록 코드 추가 2021.07.09.ijh
+                super.onPageFinished(view, url);
+
                 _userCode = getCookieValue(url, "MGUSERID");
                 CookieSyncManager.getInstance().sync();
 
-                // 페이지 서버의 자바스크립트 함수를 호출하여 사용자 확인 및 토큰 UPDATE
-                view.loadUrl("javascript:setTokenFromMobile('"+_userToken+"');");
+                String js =
+                        "(function(){try{ " +
+                                "if(typeof setTokenFromMobile==='function'){ setTokenFromMobile('" + _userToken + "'); }" +
+                                "}catch(e){} })();";
 
-                if(_userCode != null && _userCode.trim() != ""
-                && _userToken != null && _userToken.trim() != ""){
-                    // basuser 테이블에 토큰 저장
-                    // - [1].토큰저장이 페이지 서버에서 이뤄지도록 변경되어 아래 코드는 주석처리.
-                    //SaveTokenInfo();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    view.evaluateJavascript(js, null);
+                } else {
+                    view.loadUrl("javascript:" + js);
                 }
             }
 
@@ -787,14 +826,17 @@ public class MainActivity extends AppCompatActivity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
 
-                // 페이지가 호출될 때 페이지의 히든필드에 토큰 값 전송
-                //view.loadUrl("javascript:setTokenFromMobile('"+_userToken+"');");
+                if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
+                    if (!isDownloadRedirectUrl(url) && !looksLikeAttachment(url)) {
+                        lastMainPageUrl = url;
+                    }
+                }
             }
 
 
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-                Toast.makeText(activity, "Oh no! " + description, Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Oh no! " + description, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -1333,11 +1375,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void closePopup() {
-        if (popupWebView != null) {
-            popupContainer.removeAllViews();
-            popupWebView.destroy();
-            popupWebView = null;
-            popupContainer.setVisibility(View.GONE);
+        if (popupWebView == null) return;
+
+        WebView wv = popupWebView;
+        popupWebView = null;
+
+        try {
+            if (popupContainer != null) {
+                popupContainer.removeAllViews();
+                popupContainer.setVisibility(View.GONE);
+            }
+
+            wv.stopLoading();
+            wv.loadUrl("about:blank");
+            wv.clearHistory();
+
+            // destroy는 즉시가 아니라 post로 한 박자 늦춰서 크롬 내부 콜백 꼬임을 줄임
+            wv.post(() -> {
+                try { wv.destroy(); } catch (Exception ignored) {}
+            });
+        } catch (Exception e) {
+            Log.e("POPUP", "closePopup failed", e);
+            try { wv.destroy(); } catch (Exception ignored) {}
         }
     }
 
@@ -1351,5 +1410,193 @@ public class MainActivity extends AppCompatActivity {
 
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
+    private boolean looksLikeAttachment(String url) {
+        if (url == null) return false;
+        String u = url.toLowerCase();
+
+        // 쿼리스트링/토큰 붙어도 잡히게 contains로 체크
+        return u.contains(".pdf") || u.contains(".hwp") || u.contains(".zip")
+                || u.contains(".doc") || u.contains(".docx")
+                || u.contains(".xls") || u.contains(".xlsx")
+                || u.contains(".ppt") || u.contains(".pptx")
+                || u.contains(".txt") || u.contains(".csv");
+    }
+
+    private boolean isDownloadRedirectUrl(String url) {
+        if (url == null) return false;
+        String u = url.toLowerCase();
+        // 패턴: https://cd.dstoolpia.kr/url/?key=...
+        return u.startsWith("https://cd.dstoolpia.kr/url/?key=")
+                || u.startsWith("http://cd.dstoolpia.kr/url/?key=")
+                || u.contains("://cd.dstoolpia.kr/url/?key=");
+    }
+
+    private void startDownload(String url, String userAgent, String contentDisposition, String mimeType) {
+        Log.d("WV_DL", "DL url=" + url + " cd=" + contentDisposition + " ct=" + mimeType);
+        enqueueDownload(url, userAgent, contentDisposition, mimeType);
+    }
+
+    private void enqueueDownload(String url, String userAgent, String contentDisposition, String mimeType) {
+        try {
+            DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+
+            if (userAgent != null) req.addRequestHeader("User-Agent", userAgent);
+
+            String cookie = CookieManager.getInstance().getCookie(url);
+            if (cookie != null) req.addRequestHeader("Cookie", cookie);
+
+            // 파일명: contentDisposition이 없으면 bin이 될 수 있음(일단 다운로드부터 살림)
+            String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+
+            req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+
+            if (mimeType != null) req.setMimeType(mimeType);
+
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            long id = dm.enqueue(req);
+
+            Log.d("WV_DL", "enqueue ok id=" + id + " url=" + url + " cd=" + contentDisposition + " ct=" + mimeType);
+            Toast.makeText(this, "다운로드 시작", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e("WV_DL", "enqueue failed url=" + url + " cd=" + contentDisposition + " ct=" + mimeType, e);
+            Toast.makeText(this, "다운로드 실패", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean handleSpecialSchemes(String url) {
+        if (url == null || url.length() == 0) return false;
+
+        Uri uri;
+        try {
+            uri = Uri.parse(url);
+        } catch (Exception e) {
+            Log.e("WV_SCHEME", "Bad url: " + url, e);
+            return false;
+        }
+
+        String scheme = (uri.getScheme() == null) ? "" : uri.getScheme().toLowerCase();
+
+        // http/https는 WebView가 처리
+        if ("http".equals(scheme) || "https".equals(scheme)) return false;
+
+        // 외부앱으로 나갈 가능성이 큰 순간 → 팝업 덮개 먼저 정리(흰 화면 방지)
+        safeDismissPopupOverlay();
+
+        try {
+            // =========================
+            // 1) intent:// (딥링크 최종 형태)
+            // =========================
+            if (url.startsWith("intent://")) {
+                Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+
+                String pkg = intent.getPackage();
+                Log.d("WV_INTENT", "pkg=" + pkg + " url=" + url);
+
+                // ★ resolveActivity 믿지 말고 일단 실행 시도
+                try {
+                    startActivity(intent);
+                    return true;
+                } catch (Exception startFail) {
+                    Log.w("WV_INTENT", "startActivity(intent) failed. try fallback. " + startFail);
+
+                    // (A) browser_fallback_url 있으면 그걸로
+                    String fallbackUrl = intent.getStringExtra("browser_fallback_url");
+                    if (fallbackUrl != null && fallbackUrl.startsWith("http")) {
+                        try {
+                            webview.loadUrl(fallbackUrl);
+                            return true;
+                        } catch (Exception ignored) {}
+                    }
+
+                    // (B) cloudiumlink 스킴으로 한 번 더 재시도 (설치돼 있는데도 마켓 튀는 케이스 방지)
+                    // intent://cyberdigm?...#Intent;scheme=cloudiumlink;package=...;end
+                    // -> cloudiumlink://cyberdigm?...
+                    try {
+                        String retryUrl = url.replaceFirst("^intent://", "cloudiumlink://");
+                        Intent retry = new Intent(Intent.ACTION_VIEW, Uri.parse(retryUrl));
+                        retry.addCategory(Intent.CATEGORY_BROWSABLE);
+
+                        // 패키지가 명시돼 있으면 패키지 고정 (브라우저로 새는 거 방지)
+                        if (pkg != null && pkg.length() > 0) {
+                            retry.setPackage(pkg);
+                        }
+
+                        startActivity(retry);
+                        return true;
+                    } catch (Exception retryFail) {
+                        Log.w("WV_INTENT", "retry cloudiumlink failed. " + retryFail);
+                    }
+
+                    // (C) 그래도 안 되면 마켓
+                    if (pkg != null && pkg.length() > 0) {
+                        openMarket(pkg);
+                        return true;
+                    }
+
+                    Toast.makeText(this, "이 링크를 열 수 있는 앱이 없습니다.", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+            }
+
+            // =========================
+            // 2) cloudiumlink:// 직접 들어오는 케이스
+            // =========================
+            if ("cloudiumlink".equals(scheme)) {
+                Log.d("WV_CLOUDIUM", "url=" + url);
+
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW, uri);
+                    i.addCategory(Intent.CATEGORY_BROWSABLE);
+
+                    // 클라우디움 패키지로 고정(브라우저/스토어 우회 방지)
+                    i.setPackage("kr.co.cyberdigm.cloudium");
+
+                    startActivity(i);
+                    return true;
+                } catch (Exception e) {
+                    Log.w("WV_CLOUDIUM", "cloudiumlink open failed -> market", e);
+                    openMarket("kr.co.cyberdigm.cloudium");
+                    return true;
+                }
+            }
+
+            // =========================
+            // 3) market://, tel:, mailto:, sms: 등 일반 커스텀 스킴
+            // =========================
+            Intent i = new Intent(Intent.ACTION_VIEW, uri);
+            i.addCategory(Intent.CATEGORY_BROWSABLE);
+            i.putExtra(Browser.EXTRA_APPLICATION_ID, getPackageName());
+            startActivity(i);
+            return true;
+
+        } catch (Exception e) {
+            Log.e("WV_SCHEME", "No handler for: " + url, e);
+            Toast.makeText(this, "이 링크를 열 수 있는 앱이 없습니다.", Toast.LENGTH_SHORT).show();
+            return true; // WebView가 더 처리하지 않게
+        }
+    }
+
+
+    private void safeDismissPopupOverlay() {
+        try {
+            if (popupWebView != null) {
+                closePopup(); // 너가 만든 개선된 closePopup 사용
+            } else if (popupContainer != null) {
+                popupContainer.removeAllViews();
+                popupContainer.setVisibility(View.GONE);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void openMarket(String pkg) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)));
+        } catch (Exception e) {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=" + pkg)));
+        }
     }
 }
