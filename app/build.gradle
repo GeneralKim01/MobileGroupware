@@ -10,7 +10,7 @@ android {
         applicationId 'com.dstoolpia.administrator.dsgroupware2'
         minSdkVersion 21
         targetSdk 35
-        versionCode 14
+        versionCode 16
         versionName "1.6"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
