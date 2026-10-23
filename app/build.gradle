@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId 'com.dstoolpia.administrator.dsgroupware2'
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdk 35
         versionCode 17
         versionName "1.7"
